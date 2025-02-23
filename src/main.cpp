@@ -11,9 +11,14 @@ int main() {
  	 std::cout << "$ ";
  	 std::getline(std::cin, input);
 	 if(input=="exit 0") break;
-	 string dec;
-	 dec=input.substring(0,4);
-	 if(dec=="echo") cout<<input.substring(5);
+	 string dec=input.substr(0,4);
+	 if(dec=="echo"){
+	 	if(input.length()>5){
+			cout<<input.substr(5)<<endl;
+		}
+	 }
+	else{
   	 std::cout<<input<<": command not found"<<std::endl;
-	}
+	}	
+}
 }
