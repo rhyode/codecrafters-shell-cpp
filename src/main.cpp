@@ -18,9 +18,11 @@ int main() {
 		}
 	 }
 	elseif(dec=="type"){
+	   if(input.length()>5){
 		string type = input.substr(5);
 		if(type=="echo"||type=="exit"||type=="type") cout<<type<<" is a shell builtin"<<endl;
 		else cout<<input<<": command not found"<<endl;
+	   }
 	else{
   	 std::cout<<input<<": command not found"<<std::endl;
 	}	
