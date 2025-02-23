@@ -1,5 +1,5 @@
 #include <iostream>
-
+using namespace std;
 int main() {
   // Flush after every std::cout / std:cerr
   std::cout << std::unitbuf;
@@ -10,6 +10,7 @@ int main() {
    while(true){
  	 std::cout << "$ ";
  	 std::getline(std::cin, input);
+	 if(input=="exit 0") break;
   	 std::cout<<input<<": command not found"<<std::endl;
 	}
 }
