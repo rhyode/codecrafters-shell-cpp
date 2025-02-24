@@ -1,8 +1,42 @@
 
 #include <iostream>
+#include <string>
+#include <cstdlib>
+#include <filesystem>
 using namespace std;
+namespace fs = std::filesystem;
+
+string find_command(const string& cmd) {
+    char* path = getenv("PATH");
+    if (!path) return "";
+    
+    string pathStr(path);
+    size_t pos = 0;
+    string delimiter = ":";
+    
+    while ((pos = pathStr.find(delimiter)) != string::npos) {
+        string dir = pathStr.substr(0, pos);
+        string fullPath = dir + "/" + cmd;
+        
+        if (fs::exists(fullPath)) {
+            return fullPath;
+        }
+        pathStr.erase(0, pos + delimiter.length());
+    }
+    
+    // Check the last directory
+    string fullPath = pathStr + "/" + cmd;
+    if (fs::exists(fullPath)) {
+        return fullPath;
+    }
+    
+    return "";
+}
+
+
+
 int main() {
-    // Flush after every std::cout / std:cerr
+    // Flush after
     cout << unitbuf;
     cerr << unitbuf;
     string input;
@@ -20,11 +54,15 @@ int main() {
         }
         else if(dec=="type") {
             if(input.length() > 5) {
-                string type = input.substr(5);
-                if(type=="echo"||type=="exit"||type=="type") 
-                    cout << type << " is a shell builtin" << endl;
-                else 
-                    cout << type  << ": not found" << endl;
+                string cmd = input.substr(5);
+                if(cmd=="echo"||cmd=="exit"||cmd=="type") 
+                    cout << cmd << " is a shell builtin" << endl;
+                else{
+		    string path = find_command(cmd);
+		    if(!path.empty()) cout << cmd << "is" << path << endl;
+		    else cout << cmd << ": not found" << endl;
+		} 
+                    
             }
         }
         else {
