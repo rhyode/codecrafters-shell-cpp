@@ -60,7 +60,7 @@ int main() {
                     cout << cmd << " is a shell builtin" << endl;
                 else{
 		    string path = find_command(cmd);
-		    if(!path.empty()) cout << cmd << " is" << path << endl;
+		    if(!path.empty()) cout << cmd << " is " << path << endl;
 		    else cout << cmd << ": not found" << endl;
 		} 
                     
