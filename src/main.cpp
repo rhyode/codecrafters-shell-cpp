@@ -67,6 +67,11 @@ int main() {
 
         if(args[0]=="cd") {
             if(args.size() < 2) continue;
+            string target_path = args[1];
+            if (target_path == "~") {
+                char* home = getenv("HOME");
+                if (home) target_path = home;
+            }
             if(!fs::exists(args[1])) {
                 cout << "cd: " << args[1] << ": No such file or directory" << endl;
             } else {
