@@ -78,7 +78,7 @@ int main() {
         else if(args[0]=="type") {
             if(args.size() > 1) {
                 string cmd = args[1];
-                if(cmd=="echo"||cmd=="exit"||cmd=="type") 
+                if(cmd=="echo"||cmd=="exit"||cmd=="type"||cmd=="pwd") 
                     cout << cmd << " is a shell builtin" << endl;
                 else{
                     string path = find_command(cmd);
