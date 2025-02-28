@@ -72,10 +72,10 @@ int main() {
                 char* home = getenv("HOME");
                 if (home) target_path = home;
             }
-            if(!fs::exists(args[1])) {
+            if(!fs::exists(target_path)) {
                 cout << "cd: " << args[1] << ": No such file or directory" << endl;
             } else {
-                fs::current_path(args[1]);
+                fs::current_path(target_path);
             }
         }
         else if(args[0]=="pwd") {
