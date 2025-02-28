@@ -33,11 +33,10 @@ vector<string> parse_command(const string& input) {
                 current_arg.clear();
             }
         } else {
-            if(!in_single_quotes && in_double_quotes && input[i] == '\\' && i + 1 < input.length()) {
-                char next = input[i + 1];
-                if(next == '\\' || next == '$' || next == '"' || next == '\n') {
+            if(input[i] == '\\' && i + 1 < input.length()) {
+                if(!in_single_quotes) {
                     i++;
-                    current_arg += next;
+                    current_arg += input[i];
                     continue;
                 }
             }
