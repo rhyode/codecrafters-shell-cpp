@@ -64,8 +64,11 @@ int main() {
         // Parse the input into arguments
         vector<string> args = parse_command(input);
         if(args.empty()) continue;
+        if(args[0]=="pwd") {
+            cout << fs::current_path().string() << endl;
+        }
         
-        if(args[0]=="echo") {
+        else if(args[0]=="echo") {
             // Skip the command name and print the rest
             for(size_t i = 1; i < args.size(); i++) {
                 cout << args[i] << " ";
