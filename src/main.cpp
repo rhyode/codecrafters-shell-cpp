@@ -64,7 +64,16 @@ int main() {
         // Parse the input into arguments
         vector<string> args = parse_command(input);
         if(args.empty()) continue;
-        if(args[0]=="pwd") {
+
+        if(args[0]=="cd") {
+            if(args.size() < 2) continue;
+            if(!fs::exists(args[1])) {
+                cout << "cd: " << args[1] << ": No such file or directory" << endl;
+            } else {
+                fs::current_path(args[1]);
+            }
+        }
+        else if(args[0]=="pwd") {
             cout << fs::current_path().string() << endl;
         }
         
