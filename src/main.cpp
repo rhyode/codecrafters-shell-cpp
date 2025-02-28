@@ -13,11 +13,29 @@ namespace fs = std::filesystem;
 
 vector<string> parse_command(const string& input) {
     vector<string> args;
-    stringstream ss(input);
-    string arg;
-    while (ss >> arg) {
-        args.push_back(arg);
+    string current_arg;
+    bool in_quotes = false;
+    
+    for(size_t i = 0; i < input.length(); i++) {
+        if(input[i] == '\'') {
+            in_quotes = !in_quotes;
+            continue;
+        }
+        
+        if(!in_quotes && isspace(input[i])) {
+            if(!current_arg.empty()) {
+                args.push_back(current_arg);
+                current_arg.clear();
+            }
+        } else {
+            current_arg += input[i];
+        }
     }
+    
+    if(!current_arg.empty()) {
+        args.push_back(current_arg);
+    }
+    
     return args;
 }
 
