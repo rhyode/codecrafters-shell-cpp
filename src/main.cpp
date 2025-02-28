@@ -36,11 +36,7 @@ vector<string> parse_command(const string& input) {
             if(input[i] == '\\' && i + 1 < input.length()) {
                 if(!in_single_quotes) {
                     i++;
-                    if(input[i] == 'n') {
-                        current_arg += '\n';
-                    } else {
-                        current_arg += input[i];
-                    }
+                    current_arg += input[i];
                     continue;
                 }
             }
@@ -119,7 +115,10 @@ int main() {
         else if(args[0]=="echo") {
             // Skip the command name and print the rest
             for(size_t i = 1; i < args.size(); i++) {
-                cout << args[i] << " ";
+                cout << args[i];
+                if (i < args.size() - 1) {
+                    cout << " ";
+                }
             }
             cout << endl;
         }
