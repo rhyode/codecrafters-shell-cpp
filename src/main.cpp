@@ -53,16 +53,18 @@ string ProcessBackslashes(const string& input) {
         if (input[i] == '\\') {
             if (i + 1 < input.length()) {
                 char next = input[i + 1];
-                if (next == '\\') {
-                    // For escaped backslash, skip both
+                if (next == 'n') {
+                    result += '\n';
                     i++;
-                    continue;
-                } else if (next == '\'' || next == '"') {
-                    // For escaped quotes, just add the quote
+                } else if (next == 'f') {
+                    // Keep \f as is for file paths
+                    result += '\\';
+                    result += next;
+                    i++;
+                } else if (next == '\\' || next == '\'' || next == '"') {
                     result += next;
                     i++;
                 } else {
-                    // For other escaped characters, add the character
                     result += next;
                     i++;
                 }
