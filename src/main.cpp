@@ -1,294 +1,283 @@
-#include <iostream>
+#include <cmath>
+#include <cerrno>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
-#include <vector>
-#include <fstream>
-#include <unordered_set>
-#include <sstream>      // Add this for ostringstream
-#include <filesystem>   // Add this for filesystem operations
+#include <filesystem>
+#include <iostream>
+#include <map>
+#include <optional>
+#include <ranges>
+#include <sys/wait.h>
 #include <unistd.h>
-#include "utility.hpp"
- 
-void commandType(const std::vector<std::string>& command, int& exitStatus) {
-  std::unordered_set<std::string> builtinCmdSet{"type", "exit", "echo", "pwd"};
-  auto it = builtinCmdSet.find(command[0]);
-  if (it != builtinCmdSet.end()) {  // command is builtin
-    std::cout << command[0] << " is a shell builtin\n";
-    exitStatus = 0;
-  }
-  else {
-    auto filepath = utility::searchForExecutableInPathDirs(command[0]);
-    if (filepath) {
-      std::cout << command[0] << " is " << *filepath << "\n";
-      exitStatus = 0;
+#include <vector>
+uint64_t toInt(const std::string& s) {
+  uint64_t o{0};
+  uint8_t i{0};
+  for (const char& c : s | std::views::reverse) {
+    switch (c) {
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        o += pow(10, i) * (c - 48);
+        break;
+      default: return 0;
     }
-    else {
-        std::cout << command[0] << ":" << " not found\n";
-        exitStatus = 1;
-    }
   }
+  return o;
 }
-void getParameters(std::string& input, std::vector<std::string>& commandParameters) {
-  bool singleQuoteStart = false;  // toggle to true when single quote starts and false when single quote ends
-  bool doubleQuoteStart = false;  // toggle to true when double quote starts and false when double quote ends
-  std::ostringstream oss;
-  // input = "echo \"shell test\" \"testscript\"";
-  // DEBUG_LOG("input = " + input);
-  commandParameters.clear();
-  size_t pos = input.find(" ");
-  if (pos == std::string::npos) {
-    return;
+static inline uint64_t echo(const std::vector<std::string>& arguments) {
+  switch (arguments.size()) {
+    case 1: goto end;
+    default: std::cout << arguments[1];
   }
-  // DEBUG_LOG("pos = " + std::to_string(pos) + " (position for 1st space)");
-  pos++;
-  while (pos < input.length()) {
-    if ((!singleQuoteStart) && ('\'' == input[pos])) {
-      // single quote started
-      /* Enclosing characters in single quotes (‘'’) preserves the literal
-         value of each character within the quotes. A single quote may not
-         occur between single quotes, even when preceded by a backslash.
-       */
-      //  DEBUG_LOG("in single quote start, pos = " + std::to_string(pos));
-      singleQuoteStart = true;
-      // singleQuoteEnd = false;
-      auto endQuote = input.find("'", pos+1);
-      // DEBUG_LOG("before endQuote = " + std::to_string(endQuote));
-      if (endQuote == std::string::npos) {
-        endQuote = input.length();
-      }
-      // DEBUG_LOG("after endQuote = " + std::to_string(endQuote));
-      oss.clear();
-      oss.str("");
-      for (pos++; pos < endQuote; pos++) {
-        oss << input[pos];
-      }
-      singleQuoteStart = false;
-      commandParameters.push_back(oss.str());
-      // DEBUG_LOG("pos = " + std::to_string(pos) + ", commandParameters.size() = " + std::to_string(commandParameters.size()));
-      oss.clear();
-      oss.str("");
-      pos++; // skip ending single quote
-      // std::cout << "\n";
-    }
-    // else if (singleQuoteStart && ('\'' == input[pos])) {
-    //   // single quote ended
-    //   singleQuoteStart = false;
-    //   singleQuoteEnd = true;
-    // }
-    else if ((!doubleQuoteStart) && ('"' == input[pos])) {
-      doubleQuoteStart = true;
-      auto endQuote = input.find("\"", pos+1);
-      // DEBUG_LOG("before endQuote = " + std::to_string(endQuote));
-      if (endQuote == std::string::npos) {
-        endQuote = input.length();
-      }
-      // DEBUG_LOG("after endQuote = " + std::to_string(endQuote));
-      oss.clear();
-      oss.str("");
-      for (pos++; pos < endQuote; pos++) {
-        if (pos+1 < input.length() && input[pos] == '\\' &&  (input[pos+1]== '$' || input[pos+1]=='`' || input[pos+1]=='\\')) {
-          oss << input[++pos];
-        }
-        else {
-          oss << input[pos];
-        }
-      }
-      doubleQuoteStart = false;
-      // std::cout << "before, commandParameters = ";
-      // for (int i = 0; i < commandParameters.size(); i++) {
-      //   char ch = (i==(commandParameters.size()-1)) ? '\n' : ' ';
-      //   std::cout << commandParameters[i] << ch;
-      // }
-      commandParameters.push_back(oss.str());
-      // DEBUG_LOG("pos = " + std::to_string(pos) + ", commandParameters.size() = " + std::to_string(commandParameters.size()));
-      oss.clear();
-      oss.str("");
-      pos++; // go past the ending double quote
-      // std::cout << "after, commandParameters = ";
-      // for (int i = 0; i < commandParameters.size(); i++) {
-      //   char ch = (i==(commandParameters.size()-1)) ? '\n' : ' ';
-      //   std::cout << commandParameters[i] << ch;
-      // }
-    }
-    else if ('\\' == input[pos] && (pos + 1 < input.length()) /* && ' ' == input[pos+1] */) {
-      oss << input[++pos];
-      pos++;
-    }
-    else if (' ' == input[pos] && (!singleQuoteStart) && (!doubleQuoteStart)) {
-      // DEBUG_LOG("pos = " + std::to_string(pos) + ", skipping space");
-      pos++;
-    }
-    else {
-      // simple command without single/double quotes
-      oss.clear();
-      oss.str("");
-      while(pos < input.length()) {
-        if (input[pos] == ' ') {
-          pos++;
-          break;
-        }
-        else if ('\\' == input[pos] && (pos + 1 < input.length()) /* && ' ' == input[pos+1] */) {
-          oss << input[++pos];
-          ++pos;
-        }
-        else if(input[pos] == '\'' || input[pos]=='"') {
-          break;
-        }
-        else {
-          oss << input[pos++];
-        }
-      }
-      commandParameters.push_back(oss.str());
-    }
+  for (const std::string& a : arguments | std::views::drop(2)) {
+    std::cout << " " << a;
   }
-  // DEBUG_LOG("commandParameters.size() = " + std::to_string(commandParameters.size()));
-  // for (auto& c : commandParameters) {
-  //   std::cerr << "|" << c << "|\n";
-  // }
-  return;
+  end:
+  std::cout << std::endl;
+  return 0;
 }
-bool REPL(int& exitStatus) {
-  bool isTerminate = false;
-  // read 
-  std::cout << "$ ";
-  std::string input;
-  std::getline(std::cin, input);
-  // input = "echo \"before\\   after\"";
-  // evaluate and print
-  // std::vector<std::string> command = utility::split(input, "[ ]+");
-  std::vector<std::string> command; // = utility::split(input, "[ ]+");
-// DEBUG_LOG ("command[0]= " + command[0]); 
-  if (0 == input.find("type")) {
-    getParameters(input, command);
-    commandType(command, exitStatus);
+extern char** environ;
+static std::map<std::string, std::string> ENV{};
+constexpr const std::vector<std::filesystem::path> PATH() {
+  std::vector<std::filesystem::path> ret;
+  if (!ENV.contains("PATH")) return ret;
+  std::string path;
+  for (const char& c : ENV["PATH"]) {
+    if (c == ':') {
+      ret.emplace_back(path);
+      path = "";
+      continue;
+    }
+    path += c;
   }
-  else if (0 == input.find("exit")) {
-    command = utility::split(input, "[ ]+");
-    exitStatus = std::stoi(command[1]);
-    isTerminate = true;
-  }
-  else if (0 == input.find("cat")) {
-    getParameters(input, command);
-    for(auto& filename : command) {
-      std::ifstream fin(filename);
-      if(!fin) {
-        std::cerr << "cat: error opening file: " << filename;
-        continue;
-      }
-      std::string line;
-      while(std::getline(fin, line)) {
-        std::cout << line;
-      }
-      fin.close();
-    }
-    std::cout << "\n";
-  }
-  else if (0 == input.find("echo")) {
-    command.clear();
-    std::ostringstream oss;
-    // oss << "\nbefore command : " << command.size() << "\n";
-    // for (auto&c : command) {
-    //   oss << "|" << c << "|\n";
-    // }
-    // DEBUG_LOG(oss.str());
-    getParameters(input, command);
-    // oss.clear();
-    // oss.str("");
-    // oss << "\nparsed commands : " << command.size() << "\n";
-    // for (auto&c : command) {
-    //   oss << "|" << c << "|\n";
-    // }
-    // DEBUG_LOG(oss.str());
-    
-    if (command.size() < 1) {
-      DEBUG_LOG(utility::colourize("Few arguments provided for echo command", utility::cc::RED));
-      std::cout << std::endl;
-      exitStatus = 1;
-    }
-    for (int i = 0; i < command.size(); i++) {
-      char ch = (i==(command.size()-1)) ? '\n' : ' ';
-      std::cout << command[i] << ch;
-    }
-    // auto startQuote = input.find("'");
-    // if (startQuote != std::string::npos) {
-      // std::cout << "Quoted : ";
-      // handle quoted parameter
-     /*  auto endQuote = input.find("'", startQuote+1);
-      if (endQuote == std::string::npos) {
-        endQuote = input.length();
-      }
-      */ // std::cout << startQuote << " " << endQuote;
-/*       for (int i = startQuote+1; i < endQuote; i++) {
-        std::cout << input[i];
-      }
-      std::cout << "\n"; */
-    // }
-    /* else { */
-      // std::cout << "not quoted ; " << "command.size()=" << command.size();
-      // for (auto& c : command) {
-        // std::cout << "\'" << c << "'" << "\n";
-      // }
-     /*  for(int i = 1; i < command.size(); i++) {
-        char ch = i == command.size()-1 ? '\n' : ' ';
-        std::cout << command[i] << ch;
-      }
-    } */
-   /*  exitStatus = 0;
- */  }
-  else if (0 == input.find("pwd")) {
-    // std::filesystem::path cwd = std::filesystem::current_path();
-    // std::cout << cwd.string() << "\n";
-    std::string cmd = "pwd";
-    exitStatus = utility::executeShellCommand(cmd);
-  }
-  else if (0 == input.find("cd")) {
-    // exitStatus = utility::executeShellCommand(input);
-    getParameters(input, command);  // here cd gets removed from command vector
-    std::string path = command[0];
-    if (path == "~") {
-      path = std::getenv("HOME");
-    }
-    try {
-      std::filesystem::current_path(path);
-      exitStatus = 0;
-    }
-    catch(const std::filesystem::filesystem_error& e) {
-      // std::cerr << e.what();
-      std::cout << "cd: " << command[0] << ": No such file or directory\n";
-      exitStatus = 1;
-    }
-  }
+  ret.emplace_back(path);
+  return ret;
+}
+constexpr const std::filesystem::path PWD() {
+  if (!ENV.contains("PWD")) return {};
+  return ENV["PWD"];
+}
+constexpr const std::filesystem::path HOME() {
+  if (!ENV.contains("HOME")) return "/";
+  return ENV["HOME"];
+}
+uint64_t pwd() {
+  std::cout << PWD().string() << std::endl;
+  return 0;
+}
+uint64_t cd(const std::vector<std::string>& arguments) {
+  std::string arg;
+  if (arguments.size() == 1) arg = "~";
+  else if (arguments.size() == 2) arg = arguments[1];
   else {
-    command = utility::split(input, "[ ]+");
-    auto filepath = utility::searchForExecutableInPathDirs(command[0]);
-    if (filepath) {
-      auto pos = input.find(command[0]);
-      // DEBUG_LOG("pos=" + std::to_string(pos));
-      if (pos != std::string::npos) {
-        input.replace(pos, command[0].length(), *filepath);
-        if(input.find ("my_exe") == 0) 
-          DEBUG_LOG("command is myexe James");
-        exitStatus = utility::executeShellCommand(input);
-      }
-      else {
-        std::cout << command[0] << ": command not found\n";
-        exitStatus = 1;
-      }
-    }
-    else {
-      std::cout << command[0] << ": command not found\n";
-      exitStatus = 1;
+    std::cout << "cd: too many arguments" << std::endl;
+    return 1;
+  }
+  if (!arg.size()) return 0;
+  if (arg.front() == '~') arg.replace(0, 1, HOME());
+  std::filesystem::path p{arg};
+  if (p.is_relative()) p = PWD() / p;
+  if (!std::filesystem::exists(p)) {
+    std::cout
+      << "cd: "
+      << p.string()
+      << ": No such file or directory"
+      << std::endl;
+    return 1;
+  }
+  if (!std::filesystem::is_directory(p)) {
+    std::cout << "cd: " << p.string() << ": Not a directory" << std::endl;
+    return 1;
+  }
+  p = p.lexically_normal();
+  // Remove trailing slash unless at the root.
+  if (!p.has_filename() && p.has_parent_path()) p = p.parent_path();
+  ENV["PWD"] = p;
+  return 0;
+}
+std::optional<std::filesystem::path> locateBinary(const std::string& name) {
+  if (name == "") return std::nullopt;
+  using namespace std::filesystem;
+  for (const path& d : PATH()) {
+    if (!exists(d)) continue;
+    for (const directory_entry& f : directory_iterator(d)) {
+      if (f.path().filename() == name) return f.path();
     }
   }
-  return isTerminate;
+  return std::nullopt;
+}
+static constexpr std::array<std::string_view, 5> BUILTINS{
+  "cd",
+  "exit",
+  "echo",
+  "pwd",
+  "type"
+};
+inline uint64_t type(const std::vector<std::string>& arguments) {
+  if (arguments.size() == 1) return 0;
+  uint64_t ret{0};
+  for (const std::string& a : arguments | std::views::drop(1)) {
+    for (const std::string_view& b : BUILTINS) {
+      if (a == b) {
+        std::cout << a << " is a shell builtin" << std::endl;
+        goto found;
+      }
+    }
+    {
+      const std::optional<std::filesystem::path> b{locateBinary(a)};
+      if (b.has_value()) {
+        std::cout << a << " is " << b.value().string() << std::endl;
+      } else {
+        std::cout << a << ": not found" << std::endl;
+        ret = 1;
+      }
+    }
+    found:
+  }
+  return ret;
+}
+uint64_t waitForExitStatus(const pid_t& pid) {
+  int status;
+  waitpid(pid, &status, WUNTRACED);
+  // What about WCONTINUED?  Bro I dunno lmao.
+  if (WIFEXITED(status)) return WEXITSTATUS(status);
+  return -1;
+}
+uint64_t run(
+  const std::filesystem::path& binary,
+  const std::vector<std::string>& arguments
+) {
+  const pid_t pid{fork()};
+  if (pid == 0) {
+    std::vector<char*> argv;
+    argv.reserve(arguments.size() + 1);
+    for (const std::string& a : arguments) {
+      argv.push_back(const_cast<char*>(a.c_str()));
+    }
+    argv.push_back(NULL);
+    std::vector<char*> envp;
+    envp.reserve(ENV.size() + 1);
+    for (const auto& [name, value] : ENV) {
+      envp.push_back(const_cast<char*>((name + '=' + value).c_str()));
+    }
+    envp.push_back(NULL);
+    execve(binary.string().c_str(), &argv[0], &envp[0]);
+    std::cout << std::strerror(errno) << std::endl;
+    exit(-1);
+  }
+  else if (pid < 0) return pid;
+  else return waitForExitStatus(pid);
+}
+void consumeEnv() {
+  std::string name;
+  std::string value;
+  bool gotName;
+  for (char** e = environ; *e; e++) {
+    name = "";
+    value = "";
+    gotName = false;
+    for (char* c = *e; *c; c++) {
+      if (!gotName) {
+        if (*c == '=') gotName = true;
+        else name += *c;
+      } else {
+        value += *c;
+      }
+    }
+    ENV[name] = value;
+  }
 }
 int main() {
+  consumeEnv();
   // Flush after every std::cout / std:cerr
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
-  bool isTerminate = false;
-  int exitStatus = -1;
-  while(!isTerminate) {
-    isTerminate = REPL(exitStatus);
+  std::string input;
+  std::vector<std::string> arguments;
+  std::string word;
+  bool singleQuoted;
+  bool doubleQuoted;
+  bool escaped;
+  while (true) {
+    std::cout << "$ ";
+    std::getline(std::cin, input);
+    word = "";
+    arguments.clear();
+    singleQuoted = false;
+    doubleQuoted = false;
+    escaped = false;
+    for (const char& c : input) {
+      if (false) {}
+      else if (escaped) {
+        if (doubleQuoted) {
+          if (c != '"' && c != '\\') word += '\\';
+        }
+        escaped = false;
+      }
+      else if (c == '\\') {
+        if (!escaped) {
+          escaped = true;
+          continue;
+        }
+      }
+      else if (c == ' ' && !singleQuoted && !doubleQuoted) {
+        if (word.size()) {  // Drop multiple spaces.
+          arguments.emplace_back(word);
+          word = "";
+        }
+        continue;
+      }
+      else if (c == '\'' && !doubleQuoted) {
+        if (singleQuoted) {
+          arguments.emplace_back(word);
+          word = "";
+          singleQuoted = false;
+        }
+        else singleQuoted = true;
+        continue;
+      }
+      else if (c == '"' && !singleQuoted) {
+        if (doubleQuoted) {
+          if (!escaped) {
+            arguments.emplace_back(word);
+            word = "";
+            doubleQuoted = false;
+            continue;
+          }
+          else escaped = false;
+        }
+        else {
+          doubleQuoted = true;
+          continue;
+        }
+      }
+      word += c;
+    }
+    if (!word.empty()) arguments.emplace_back(word);
+    if (arguments.empty()) continue;
+    else if (arguments[0] == "exit") {
+      switch (arguments.size()) {
+        case 1: return 0;
+        case 2: return toInt(arguments[1]);
+        default: std::cout << arguments[0] << ": too many arguments";
+      }
+    }
+    else if (arguments[0] == "echo") echo(arguments);
+    else if (arguments[0] == "type") type(arguments);
+    else if (arguments[0] == "pwd") pwd();
+    else if (const auto& b{locateBinary(arguments[0])}; b.has_value()) {
+      run(b.value(), arguments);
+    }
+    else if (arguments[0] == "cd") cd(arguments);
+    else std::cout << input << ": not found" << std::endl;
   }
-  return exitStatus;
 }
