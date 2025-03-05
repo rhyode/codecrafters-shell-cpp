@@ -58,7 +58,8 @@ string ProcessBackslashes(const string& input) {
                     i++;
                     continue;
                 } else if (next == '\'' || next == '"') {
-                    // For escaped quotes, add quote without backslash
+                    // For escaped quotes, preserve both backslash and quote
+                    result += '\\';
                     result += next;
                     i++;
                 } else {
