@@ -218,10 +218,17 @@ int main() {
     for (const char& c : input) {
       if (false) {}
       else if (escaped) {
-        if (doubleQuoted) {
-          if (c != '"' && c != '\\' && c != '$' && c != '`') word += '\\';
+        if (c == ' ') {
+          // For escaped spaces, just add the space without any special handling
+          word += ' ';
+        } else if (doubleQuoted) {
+          if (c != '"' && c != '\\' && c != '$' && c != '`') {
+            word += '\\';
+          }
+          word += c;
+        } else {
+          word += c;
         }
-        word += c;
         escaped = false;
       }
       else if (c == '\\') {
@@ -232,10 +239,6 @@ int main() {
         if (word.size()) {
           arguments.emplace_back(word);
           word = "";
-        }
-        // Count consecutive spaces when not in quotes
-        if (!escaped) {
-          word += ' ';
         }
         continue;
       }
