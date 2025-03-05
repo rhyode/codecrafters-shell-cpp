@@ -1,163 +1,144 @@
-
-#include <iostream>
-#include <string>
-#include <filesystem>
-#include <cstdlib>
-#include <vector>
-#include <sstream>
 #include <unistd.h>
-#include <sys/wait.h>
+#include <filesystem>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+
 using namespace std;
 namespace fs = std::filesystem;
-vector<string> parse_command(const string& input) {
-    vector<string> args;
-    string current_arg;
-    bool in_single_quotes = false;
-    bool in_double_quotes = false;
-    
-    for(size_t i = 0; i < input.length(); i++) {
-        if(!in_single_quotes && input[i] == '"') {
-            in_double_quotes = !in_double_quotes;
-            continue;
-        }
-        if(!in_double_quotes && input[i] == '\'') {
-            in_single_quotes = !in_single_quotes;
-            continue;
-        }
-        
-        if(!in_single_quotes && !in_double_quotes && isspace(input[i])) {
-            if(!current_arg.empty()) {
-                args.push_back(current_arg);
-                current_arg.clear();
-            }
-        } else {
-            if(input[i] == '\\' && i + 1 < input.length()) {
-                if(!in_single_quotes) {
-                    i++;
-                    if(in_double_quotes) {
-                        if(input[i] == '\\' || input[i] == '"') {
-                            current_arg += input[i];
-                        } else {
-                            current_arg += '\\';
-                            current_arg += input[i];
-                        }
-                    } else {
-                        current_arg += input[i];
+
+string SearchExecutable(const string &executable_name, const string &env_p)
+{
+    stringstream ss(env_p);
+    vector<string> paths;
+    string p;
+    while (getline(ss, p, ':'))
+    {
+        paths.push_back(p);
+    }
+    for (const auto &path : paths)
+    {
+        try
+        {
+            for (const auto &entry : fs::recursive_directory_iterator(path))
+            {
+                if (entry.is_regular_file() &&
+                    entry.path().filename() == executable_name)
+                {
+                    auto perms = entry.status().permissions();
+                    if ((perms & fs::perms::owner_exec) != fs::perms::none ||
+                        (perms & fs::perms::group_exec) != fs::perms::none ||
+                        (perms & fs::perms::others_exec) != fs::perms::none)
+                    {
+                        return entry.path().c_str();
                     }
-                    continue;
                 }
             }
-            current_arg += input[i];
+        }
+        catch (const exception &ex)
+        {
         }
     }
-    
-    if(!current_arg.empty()) {
-        args.push_back(current_arg);
-    }
-    
-    return args;
-}
-string find_command(const string& cmd) {
-    char* path = getenv("PATH");
-    if (!path) return "";
-    
-    string pathStr(path);
-    size_t pos = 0;
-    string delimiter = ":";
-    
-    while ((pos = pathStr.find(delimiter)) != string::npos) {
-        string dir = pathStr.substr(0, pos);
-        string fullPath = dir + "/" + cmd;
-        
-        if (fs::exists(fullPath)) {
-            return fullPath;
-        }
-        pathStr.erase(0, pos + delimiter.length());
-    }
-    
-    // Check the last directory
-    string fullPath = pathStr + "/" + cmd;
-    if (fs::exists(fullPath)) {
-        return fullPath;
-    }
-    
     return "";
 }
-int main() {
-    cout << unitbuf;
-    cerr << unitbuf;
-    string input;
-    while(true) {
-        cout << "$ ";
-        getline(cin, input);
-        if(input=="exit 0") break;
-        
-        // Parse the input into arguments
-        vector<string> args = parse_command(input);
-        if(args.empty()) continue;
-        if(args[0]=="cd") {
-            if(args.size() < 2) continue;
-            string target_path = args[1];
-            if (target_path == "~") {
-                char* home = getenv("HOME");
-                if (home) target_path = home;
+
+string EchoMessage(const string &params)
+{
+    string result = "";
+    if ((params.at(0) == ''') && (params.at(params.size() - 1) == '''))
+    {
+        result = params.substr(1, params.size() - 1);
+        result = result.substr(0, result.size() - 1);
+    }
+    else
+    {
+        bool space_found = false;
+        bool apos_start = false;
+        for (auto c : params)
+        {
+            if (c == ' ' && !apos_start)
+            {
+                if (!space_found)
+                    space_found = true;
+                else
+                    continue;
             }
-            if(!fs::exists(target_path)) {
-                cout << "cd: " << args[1] << ": No such file or directory" << endl;
-            } else {
-                fs::current_path(target_path);
+            else if (space_found)
+                space_found = false;
+            if (c == '"')
+            {
+                apos_start = !apos_start;
+                continue;
             }
-        }
-        else if(args[0]=="pwd") {
-            cout << fs::current_path().string() << endl;
-        }
-        
-        else if(args[0]=="echo") {
-            // Skip the command name and print the rest
-            for(size_t i = 1; i < args.size(); i++) {
-                cout << args[i];
-                if (i < args.size() - 1) {
-                    cout << " ";
-                }
-            }
-            cout << endl;
-        }
-        else if(args[0]=="type") {
-            if(args.size() > 1) {
-                string cmd = args[1];
-                if(cmd=="echo"||cmd=="exit"||cmd=="type"||cmd=="pwd") 
-                    cout << cmd << " is a shell builtin" << endl;
-                else{
-                    string path = find_command(cmd);
-                    if(!path.empty()) cout << cmd << " is " << path << endl;
-                    else cout << cmd << ": not found" << endl;
-                }
-            }
-        }
-        else {
-            // Try to execute as external command
-            string path = find_command(args[0]);
-            if(!path.empty()) {
-                pid_t pid = fork();
-                if(pid == 0) {
-                    // Child process
-                    vector<char*> c_args;
-                    for(const string& arg : args) {
-                        c_args.push_back(const_cast<char*>(arg.c_str()));
-                    }
-                    c_args.push_back(nullptr);
-                    
-                    execv(path.c_str(), c_args.data());
-                    exit(1); // If execv fails
-                } else if(pid > 0) {
-                    // Parent process
-                    int status;
-                    waitpid(pid, &status, 0);
-                }
-            } else {
-                cout << args[0] << ": command not found" << endl;
-            }
+            result += c;
         }
     }
+    return result;
 }
-\ No newline at end of file
+
+int main()
+{
+    string env_p = string(getenv("PATH"));
+    while (true)
+    {
+        cout << unitbuf;
+        cerr << unitbuf;
+        string input;
+        cout << "$ ";
+        getline(cin, input);
+        string exec_name = input.substr(0, input.find(' '));
+        string params = input.substr(input.find(' ') + 1,
+                                     input.size() - input.find(' ') + 1);
+        if (input == "exit 0")
+            return 0;
+        if (exec_name == "echo")
+        {
+            cout << EchoMessage(params) << endl;
+            continue;
+        }
+        if (exec_name == "type" && ((params == "echo") || (params == "exit") ||
+                                    (params == "type") || (params == "pwd")))
+        {
+            cout << params << " is a shell builtin" << endl;
+            continue;
+        }
+        if (exec_name == "type")
+        {
+            string exec_path = SearchExecutable(params, env_p);
+            if (exec_path == "")
+                cout << params << ": not found" << endl;
+            else
+            {
+                cout << params << " is " << exec_path << endl;
+            }
+            continue;
+        }
+        if (exec_name == "cd")
+        {
+            if (params == "~")
+            {
+                chdir(getenv("HOME"));
+                continue;
+            }
+            if (fs::exists(fs::path(params)))
+            {
+                chdir(params.c_str());
+                continue;
+            }
+            cout << exec_name << ": " << params
+                 << ": No such file or directory" << endl;
+            continue;
+        }
+        if (SearchExecutable(exec_name, env_p) != "")
+        {
+            system(input.c_str());
+            continue;
+        }
+        if (input == "pwd")
+        {
+            system(input.c_str());
+            continue;
+        }
+        cout << exec_name << ": not found" << endl;
+    }
+}
