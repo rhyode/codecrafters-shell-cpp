@@ -53,17 +53,19 @@ string ProcessBackslashes(const string& input) {
         if (input[i] == '\\') {
             if (i + 1 < input.length()) {
                 char next = input[i + 1];
-                if (next == '\'' || next == '"') {
-                    // For escaped quotes, keep both the quote and skip the backslash
+                if (next == '\\') {
+                    // Skip consecutive backslashes
+                    i++;
+                    continue;
+                } else if (next == '\'' || next == '"') {
+                    // For escaped quotes, add quote without backslash
                     result += next;
-                } else if (next == '\\') {
-                    // For escaped backslashes, keep one backslash
-                    result += '\\';
+                    i++;
                 } else {
-                    // For other escaped characters, keep the character
+                    // For other escaped characters
                     result += next;
+                    i++;
                 }
-                i++;
             }
         } else {
             result += input[i];
