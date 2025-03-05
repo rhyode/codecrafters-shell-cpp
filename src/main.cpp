@@ -180,6 +180,28 @@ int main() {
                  << ": No such file or directory" << endl;
             continue;
         }
+        if (exec_name == "cat") {
+            pid_t pid = fork();
+            if (pid == 0) {
+                // Child process
+                vector<char*> c_args;
+                c_args.push_back(const_cast<char*>(exec_name.c_str()));
+                for (size_t i = 1; i < args.size(); i++) {
+                    c_args.push_back(const_cast<char*>(args[i].c_str()));
+                }
+                c_args.push_back(nullptr);
+                
+                string cat_path = SearchExecutable("cat", env_p);
+                execv(cat_path.c_str(), c_args.data());
+                exit(1);
+            } else if (pid > 0) {
+                // Parent process
+                int status;
+                waitpid(pid, &status, 0);
+            }
+            continue;
+        }
+        
         if (SearchExecutable(exec_name, env_p) != "") {
             pid_t pid = fork();
             if (pid == 0) {
