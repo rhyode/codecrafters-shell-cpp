@@ -146,36 +146,35 @@ int main() {
             continue;
         }
         
-        if (exec_name == "type" && ((params == "echo") || (params == "exit") ||
-                                    (params == "type") || (params == "pwd")))
-        {
-            cout << params << " is a shell builtin" << endl;
-            continue;
-        }
-        if (exec_name == "type")
-        {
-            string exec_path = SearchExecutable(params, env_p);
-            if (exec_path == "")
-                cout << params << ": not found" << endl;
-            else
-            {
-                cout << params << " is " << exec_path << endl;
+        if (exec_name == "type") {
+            if (args.size() > 1) {
+                string cmd = args[1];
+                if (cmd == "echo" || cmd == "exit" || cmd == "type" || cmd == "pwd") {
+                    cout << cmd << " is a shell builtin" << endl;
+                } else {
+                    string exec_path = SearchExecutable(cmd, env_p);
+                    if (exec_path == "") {
+                        cout << cmd << ": not found" << endl;
+                    } else {
+                        cout << cmd << " is " << exec_path << endl;
+                    }
+                }
             }
             continue;
         }
-        if (exec_name == "cd")
-        {
-            if (params == "~")
-            {
+        
+        if (exec_name == "cd") {
+            if (args.size() < 2) continue;
+            string target_path = args[1];
+            if (target_path == "~") {
                 chdir(getenv("HOME"));
                 continue;
             }
-            if (fs::exists(fs::path(params)))
-            {
-                chdir(params.c_str());
+            if (fs::exists(fs::path(target_path))) {
+                chdir(target_path.c_str());
                 continue;
             }
-            cout << exec_name << ": " << params
+            cout << exec_name << ": " << target_path
                  << ": No such file or directory" << endl;
             continue;
         }
