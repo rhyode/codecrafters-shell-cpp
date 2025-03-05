@@ -54,16 +54,15 @@ string ProcessBackslashes(const string& input) {
             if (i + 1 < input.length()) {
                 char next = input[i + 1];
                 if (next == '\\') {
-                    // Skip consecutive backslashes
+                    // For escaped backslash, skip both
                     i++;
                     continue;
                 } else if (next == '\'' || next == '"') {
-                    // For escaped quotes, preserve both backslash and quote
-                    result += '\\';
+                    // For escaped quotes, just add the quote
                     result += next;
                     i++;
                 } else {
-                    // For other escaped characters
+                    // For other escaped characters, add the character
                     result += next;
                     i++;
                 }
