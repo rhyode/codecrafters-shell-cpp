@@ -201,11 +201,13 @@ int main() {
             pid_t pid = fork();
             if (pid == 0) {
                 // Child process
+                vector<string> processed_paths;
                 vector<char*> c_args;
                 c_args.push_back(const_cast<char*>(exec_name.c_str()));
+                
                 for (size_t i = 1; i < args.size(); i++) {
-                    string processed_path = ProcessPath(args[i]);
-                    c_args.push_back(const_cast<char*>(processed_path.c_str()));
+                    processed_paths.push_back(ProcessPath(args[i]));
+                    c_args.push_back(const_cast<char*>(processed_paths.back().c_str()));
                 }
                 c_args.push_back(nullptr);
                 
