@@ -219,8 +219,9 @@ int main() {
       if (false) {}
       else if (escaped) {
         if (doubleQuoted) {
-          if (c != '"' && c != '\\') word += '\\';
+          if (c != '"' && c != '\\' && c != '$' && c != '`') word += '\\';
         }
+        word += c;
         escaped = false;
       }
       else if (c == '\\') {
@@ -230,35 +231,21 @@ int main() {
         }
       }
       else if (c == ' ' && !singleQuoted && !doubleQuoted) {
-        if (word.size()) {  // Drop multiple spaces.
+        if (word.size()) {
           arguments.emplace_back(word);
           word = "";
         }
-        continue;
-      }
-      else if (c == '\'' && !doubleQuoted) {
-        if (singleQuoted) {
-          arguments.emplace_back(word);
-          word = "";
-          singleQuoted = false;
-        }
-        else singleQuoted = true;
         continue;
       }
       else if (c == '"' && !singleQuoted) {
         if (doubleQuoted) {
-          if (!escaped) {
-            arguments.emplace_back(word);
-            word = "";
-            doubleQuoted = false;
-            continue;
-          }
-          else escaped = false;
-        }
-        else {
+          arguments.emplace_back(word);
+          word = "";
+          doubleQuoted = false;
+        } else {
           doubleQuoted = true;
-          continue;
         }
+        continue;
       }
       word += c;
     }
