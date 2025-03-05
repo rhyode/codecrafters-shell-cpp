@@ -4,6 +4,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <sys/wait.h>
+#include <sys/types.h>
 
 using namespace std;
 namespace fs = std::filesystem;
