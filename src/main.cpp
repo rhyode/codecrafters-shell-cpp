@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <filesystem>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -45,57 +46,106 @@ string SearchExecutable(const string &executable_name, const string &env_p)
 string EchoMessage(const string &params)
 {
     string result = "";
-    if ((params.at(0) == ''') && (params.at(params.size() - 1) == '''))
-    {
-        result = params.substr(1, params.size() - 1);
-        result = result.substr(0, result.size() - 1);
-    }
-    else
-    {
-        bool space_found = false;
-        bool apos_start = false;
-        for (auto c : params)
-        {
-            if (c == ' ' && !apos_start)
-            {
-                if (!space_found)
-                    space_found = true;
-                else
-                    continue;
-            }
-            else if (space_found)
-                space_found = false;
-            if (c == '"')
-            {
-                apos_start = !apos_start;
+    bool in_double_quotes = false;
+    bool in_single_quotes = false;
+    
+    for (size_t i = 0; i < params.length(); i++) {
+        if (!in_single_quotes && params[i] == '"') {
+            in_double_quotes = !in_double_quotes;
+            continue;
+        }
+        if (!in_double_quotes && params[i] == '\'') {
+            in_single_quotes = !in_single_quotes;
+            continue;
+        }
+        
+        if (params[i] == '\\' && i + 1 < params.length()) {
+            if (!in_single_quotes) {
+                if (in_double_quotes) {
+                    if (params[i + 1] == '\\' || params[i + 1] == '"') {
+                        result += params[i + 1];
+                    } else {
+                        result += '\\';
+                        result += params[i + 1];
+                    }
+                } else {
+                    result += params[i + 1];
+                }
+                i++;
                 continue;
             }
-            result += c;
         }
+        result += params[i];
     }
+    
     return result;
 }
 
-int main()
-{
+vector<string> ParseCommand(const string& input) {
+    vector<string> args;
+    string current_arg;
+    bool in_double_quotes = false;
+    bool in_single_quotes = false;
+    
+    for (size_t i = 0; i < input.length(); i++) {
+        if (!in_single_quotes && input[i] == '"') {
+            in_double_quotes = !in_double_quotes;
+            continue;
+        }
+        if (!in_double_quotes && input[i] == '\'') {
+            in_single_quotes = !in_single_quotes;
+            continue;
+        }
+        
+        if (!in_single_quotes && !in_double_quotes && isspace(input[i])) {
+            if (!current_arg.empty()) {
+                args.push_back(current_arg);
+                current_arg.clear();
+            }
+        } else {
+            if (input[i] == '\\' && i + 1 < input.length()) {
+                if (!in_single_quotes) {
+                    i++;
+                    current_arg += input[i];
+                    continue;
+                }
+            }
+            current_arg += input[i];
+        }
+    }
+    
+    if (!current_arg.empty()) {
+        args.push_back(current_arg);
+    }
+    
+    return args;
+}
+
+int main() {
     string env_p = string(getenv("PATH"));
-    while (true)
-    {
+    while (true) {
         cout << unitbuf;
         cerr << unitbuf;
         string input;
         cout << "$ ";
         getline(cin, input);
-        string exec_name = input.substr(0, input.find(' '));
-        string params = input.substr(input.find(' ') + 1,
-                                     input.size() - input.find(' ') + 1);
-        if (input == "exit 0")
+        
+        vector<string> args = ParseCommand(input);
+        if (args.empty()) continue;
+        
+        string exec_name = args[0];
+        if (exec_name == "exit" && args.size() > 1 && args[1] == "0")
             return 0;
-        if (exec_name == "echo")
-        {
-            cout << EchoMessage(params) << endl;
+            
+        if (exec_name == "echo") {
+            for (size_t i = 1; i < args.size(); i++) {
+                cout << args[i];
+                if (i < args.size() - 1) cout << " ";
+            }
+            cout << endl;
             continue;
         }
+        
         if (exec_name == "type" && ((params == "echo") || (params == "exit") ||
                                     (params == "type") || (params == "pwd")))
         {
@@ -129,9 +179,23 @@ int main()
                  << ": No such file or directory" << endl;
             continue;
         }
-        if (SearchExecutable(exec_name, env_p) != "")
-        {
-            system(input.c_str());
+        if (SearchExecutable(exec_name, env_p) != "") {
+            pid_t pid = fork();
+            if (pid == 0) {
+                // Child process
+                vector<char*> c_args;
+                for (const string& arg : args) {
+                    c_args.push_back(const_cast<char*>(arg.c_str()));
+                }
+                c_args.push_back(nullptr);
+                
+                execv(SearchExecutable(exec_name, env_p).c_str(), c_args.data());
+                exit(1);
+            } else if (pid > 0) {
+                // Parent process
+                int status;
+                waitpid(pid, &status, 0);
+            }
             continue;
         }
         if (input == "pwd")
