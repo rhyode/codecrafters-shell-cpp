@@ -2,6 +2,14 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <iostream>
+
+// Define DEBUG_LOG macro
+#ifdef DEBUG
+    #define DEBUG_LOG(x) std::cerr << x << std::endl
+#else
+    #define DEBUG_LOG(x)
+#endif
 
 namespace utility {
     enum class cc { RED };  // Color codes enum
