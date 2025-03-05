@@ -225,15 +225,17 @@ int main() {
         escaped = false;
       }
       else if (c == '\\') {
-        if (!escaped) {
-          escaped = true;
-          continue;
-        }
+        escaped = true;
+        continue;
       }
       else if (c == ' ' && !singleQuoted && !doubleQuoted) {
         if (word.size()) {
           arguments.emplace_back(word);
           word = "";
+        }
+        // Count consecutive spaces when not in quotes
+        if (!escaped) {
+          word += ' ';
         }
         continue;
       }
