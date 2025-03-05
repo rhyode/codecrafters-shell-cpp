@@ -36,15 +36,7 @@ vector<string> parse_command(const string& input) {
             if(input[i] == '\\' && i + 1 < input.length()) {
                 if(!in_single_quotes) {
                     i++;
-                    if(input[i] == 'n') {
-                        if(in_double_quotes) {
-                            current_arg += "n";
-                        } else {
-                            current_arg += "\n";
-                        }
-                    } else {
-                        current_arg += input[i];
-                    }
+                    current_arg += input[i];
                     continue;
                 }
             }
