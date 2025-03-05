@@ -123,6 +123,23 @@ vector<string> ParseCommand(const string& input) {
     return args;
 }
 
+string ProcessPath(const string& path) {
+    string result;
+    for (size_t i = 0; i < path.length(); i++) {
+        if (path[i] == '\\' && i + 1 < path.length()) {
+            i++;
+            if (path[i] == 'n') {
+                result += '\n';
+            } else {
+                result += path[i];
+            }
+        } else {
+            result += path[i];
+        }
+    }
+    return result;
+}
+
 int main() {
     string env_p = string(getenv("PATH"));
     while (true) {
@@ -187,7 +204,8 @@ int main() {
                 vector<char*> c_args;
                 c_args.push_back(const_cast<char*>(exec_name.c_str()));
                 for (size_t i = 1; i < args.size(); i++) {
-                    c_args.push_back(const_cast<char*>(args[i].c_str()));
+                    string processed_path = ProcessPath(args[i]);
+                    c_args.push_back(const_cast<char*>(processed_path.c_str()));
                 }
                 c_args.push_back(nullptr);
                 
