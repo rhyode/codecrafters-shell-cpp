@@ -50,9 +50,16 @@ string ProcessDoubleQuotedString(const string& input, size_t& i) {
 string ProcessBackslashes(const string& input) {
     string result;
     for (size_t i = 0; i < input.length(); i++) {
-        if (input[i] == '\\' && i + 1 < input.length()) {
-            result += input[i + 1];
-            i++;
+        if (input[i] == '\\') {
+            // Skip consecutive backslashes
+            while (i + 1 < input.length() && input[i + 1] == '\\') {
+                i++;
+            }
+            // Add next character if exists
+            if (i + 1 < input.length()) {
+                result += input[i + 1];
+                i++;
+            }
         } else {
             result += input[i];
         }
