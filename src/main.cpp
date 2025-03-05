@@ -54,9 +54,9 @@ string ProcessBackslashes(const string& input) {
             if (i + 1 < input.length()) {
                 char next = input[i + 1];
                 if (next == 'n') {
-                    // For \n, just concatenate without space
+                    // For \n, add 'n' character
+                    result += 'n';
                     i++;
-                    continue;
                 } else if (next == 'f') {
                     result += '\\';
                     result += next;
