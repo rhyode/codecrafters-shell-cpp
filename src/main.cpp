@@ -81,12 +81,23 @@ vector<string> ParseCommand(const string& input) {
     bool in_double_quotes = false;
     
     for (size_t i = 0; i < input.length(); i++) {
+        if (input[i] == '\\' && i + 1 < input.length()) {
+            char next = input[i + 1];
+            if (next == '\'' || next == '"') {
+                current_arg += next;
+                i++;
+                continue;
+            }
+        }
+        
         if (!in_single_quotes && input[i] == '"') {
             in_double_quotes = !in_double_quotes;
+            current_arg += input[i];
             continue;
         }
         if (!in_double_quotes && input[i] == '\'') {
             in_single_quotes = !in_single_quotes;
+            current_arg += input[i];
             continue;
         }
         
