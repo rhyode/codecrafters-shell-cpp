@@ -7,10 +7,8 @@
 #include <sstream>
 #include <unistd.h>
 #include <sys/wait.h>
-
 using namespace std;
 namespace fs = std::filesystem;
-
 vector<string> parse_command(const string& input) {
     vector<string> args;
     string current_arg;
@@ -36,7 +34,16 @@ vector<string> parse_command(const string& input) {
             if(input[i] == '\\' && i + 1 < input.length()) {
                 if(!in_single_quotes) {
                     i++;
-                    current_arg += input[i];
+                    if(in_double_quotes) {
+                        if(input[i] == '\\' || input[i] == '"') {
+                            current_arg += input[i];
+                        } else {
+                            current_arg += '\\';
+                            current_arg += input[i];
+                        }
+                    } else {
+                        current_arg += input[i];
+                    }
                     continue;
                 }
             }
@@ -50,8 +57,6 @@ vector<string> parse_command(const string& input) {
     
     return args;
 }
-
-
 string find_command(const string& cmd) {
     char* path = getenv("PATH");
     if (!path) return "";
@@ -78,14 +83,10 @@ string find_command(const string& cmd) {
     
     return "";
 }
-
-
-
 int main() {
     cout << unitbuf;
     cerr << unitbuf;
     string input;
-
     while(true) {
         cout << "$ ";
         getline(cin, input);
@@ -94,7 +95,6 @@ int main() {
         // Parse the input into arguments
         vector<string> args = parse_command(input);
         if(args.empty()) continue;
-
         if(args[0]=="cd") {
             if(args.size() < 2) continue;
             string target_path = args[1];
@@ -160,3 +160,4 @@ int main() {
         }
     }
 }
+\ No newline at end of file
