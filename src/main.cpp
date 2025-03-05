@@ -54,10 +54,10 @@ string ProcessBackslashes(const string& input) {
             if (i + 1 < input.length()) {
                 char next = input[i + 1];
                 if (next == 'n') {
-                    result += '\n';
+                    // For \n, just concatenate without space
                     i++;
+                    continue;
                 } else if (next == 'f') {
-                    // Keep \f as is for file paths
                     result += '\\';
                     result += next;
                     i++;
