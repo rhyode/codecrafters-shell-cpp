@@ -57,14 +57,14 @@ string ProcessBackslashes(const string& input) {
                     // For \n, add 'n' character
                     result += 'n';
                     i++;
-                } else if (next == 'f') {
+                } else if (next == '\\' || next == '\'' || next == '"') {
+                    // For escaped special characters, keep both backslash and character
                     result += '\\';
                     result += next;
                     i++;
-                } else if (next == '\\' || next == '\'' || next == '"') {
-                    result += next;
-                    i++;
                 } else {
+                    // For other escaped characters, keep both
+                    result += '\\';
                     result += next;
                     i++;
                 }
