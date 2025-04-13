@@ -217,7 +217,7 @@ int main() {
     escaped = false;
     for (const char& c : input) {
       if (false) {}
-      else if (escaped) {
+sr      else if (escaped) {
         if (c == ' ') {
           // For escaped spaces, just add the space without any special handling
           word += ' ';
