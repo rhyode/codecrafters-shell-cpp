@@ -27,6 +27,7 @@ uint64_t toInt(const std::string& s) {
       case '8':
       case '9':
         o += pow(10, i) * (c - 48);
+        i++;
         break;
       default: return 0;
     }
@@ -266,10 +267,10 @@ int main() {
     else if (arguments[0] == "echo") echo(arguments);
     else if (arguments[0] == "type") type(arguments);
     else if (arguments[0] == "pwd") pwd();
+    else if (arguments[0] == "cd") cd(arguments);
     else if (const auto& b{locateBinary(arguments[0])}; b.has_value()) {
       run(b.value(), arguments);
     }
-    else if (arguments[0] == "cd") cd(arguments);
     else std::cout << input << ": not found" << std::endl;
   }
 }
