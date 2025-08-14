@@ -217,43 +217,30 @@ int main() {
     doubleQuoted = false;
     escaped = false;
     for (const char& c : input) {
-      if (false) {}
-      else if (escaped) {
-        if (c == ' ') {
-          // For escaped spaces, just add the space without any special handling
-          word += ' ';
-        } else if (doubleQuoted) {
-          if (c != '"' && c != '\\' && c != '$' && c != '`') {
-            word += '\\';
-          }
-          word += c;
-        } else {
-          word += c;
-        }
+      if (escaped) {
+        // Any escaped character is added literally to the word
+        word += c;
         escaped = false;
       }
       else if (c == '\\') {
         escaped = true;
-        continue;
       }
       else if (c == ' ' && !singleQuoted && !doubleQuoted) {
-        if (word.size()) {
+        // Unquoted space: end current word if non-empty
+        if (!word.empty()) {
           arguments.emplace_back(word);
           word = "";
         }
-        continue;
+        // Continue to next character (spaces are ignored)
       }
       else if (c == '"' && !singleQuoted) {
-        if (doubleQuoted) {
-          arguments.emplace_back(word);
-          word = "";
-          doubleQuoted = false;
-        } else {
-          doubleQuoted = true;
-        }
-        continue;
+        // Toggle double quote state
+        doubleQuoted = !doubleQuoted;
       }
-      word += c;
+      else {
+        // Regular character: add to current word
+        word += c;
+      }
     }
     if (!word.empty()) arguments.emplace_back(word);
     if (arguments.empty()) continue;
